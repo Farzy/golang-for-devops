@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 func main() {
-	testLinkedList()
+	fmt.Println("Hello World!")
 }
