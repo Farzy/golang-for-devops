@@ -9,14 +9,34 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"unicode"
 )
+
+// Word Create custom type, in order to have the Unmarshaler code capitalize the first letter
+// when converting from JSON to our struct.
+type Word string
+
+func (w *Word) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	if len(s) > 0 {
+		runes := []rune(s)
+		runes[0] = unicode.ToUpper(runes[0])
+		s = string(runes)
+	}
+	*w = Word(s)
+
+	return nil
+}
 
 // Words structure
 // Example json: {"page":"words","input":"word1","words":["word3","word2","word1"]}
 type Words struct {
-	Page  string   `json:"page"`
-	Input string   `json:"input"`
-	Words []string `json:"words"`
+	Page  string `json:"page"`
+	Input string `json:"input"`
+	Words []Word `json:"words"`
 }
 
 func main() {
@@ -63,5 +83,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("JSON Parsed\nPage: %s\nWords: %v\n", words.Page, strings.Join(words.Words, ", "))
+	var strWords = make([]string, 0, len(words.Words))
+	for _, w := range words.Words {
+		strWords = append(strWords, string(w))
+	}
+	fmt.Printf("JSON Parsed\nPage: %s\nWords: %v\n", words.Page, strings.Join(strWords, ", "))
 }
