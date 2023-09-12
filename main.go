@@ -1,14 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"net/http"
-	"net/url"
-	"os"
-	"strings"
 )
 
 // Words structure
@@ -19,49 +14,29 @@ type Words struct {
 	Words []string `json:"words"`
 }
 
+type MySlowReader struct {
+	Contents string
+	pos      int
+}
+
+func (m *MySlowReader) Read(p []byte) (n int, err error) {
+	if m.pos < len(m.Contents) {
+		n := copy(p, m.Contents[m.pos:m.pos+1])
+		m.pos++
+		return n, nil
+	}
+	return 0, io.EOF
+}
+
 func main() {
-	args := os.Args
-	if len(args) < 2 {
-		fmt.Printf("Usage: ./http-get <url>\n")
-		os.Exit(1)
-	}
-	myUrl := args[1]
-	if _, err := url.ParseRequestURI(myUrl); err != nil {
-		fmt.Printf("URL is in invalid format: %s\n", err)
-		os.Exit(1)
+	mySlowReaderInstance := &MySlowReader{
+		Contents: "hello world!",
 	}
 
-	response, err := http.Get(myUrl)
+	out, err := io.ReadAll(mySlowReaderInstance)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			log.Println("Error while closing Body stream:", err)
-		}
-	}(response.Body)
-
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Printf("HTTP Status code: %d\nBody: %s\n", response.StatusCode, body)
-	// fmt.Printf("HTTP Status code: %d\nBody: %v\n", response.StatusCode, string(body)) // Explicit []byte to string conversion
-
-	if response.StatusCode != http.StatusOK {
-		fmt.Printf("Invalid output (HTTP code: %d): %s\n", response.StatusCode, body)
-		os.Exit(1)
-	}
-
-	var words Words
-
-	err = json.Unmarshal(body, &words)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Printf("JSON Parsed\nPage: %s\nWords: %v\n", words.Page, strings.Join(words.Words, ", "))
+	fmt.Printf("output: %s\n", out)
 }
