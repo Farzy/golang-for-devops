@@ -36,7 +36,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	defer response.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Println("Error while closing Body stream:", err)
+		}
+	}(response.Body)
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
