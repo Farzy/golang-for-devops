@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -44,13 +45,24 @@ func (o Occurrence) GetResponse() string {
 }
 
 func main() {
-	args := os.Args
-	if len(args) < 2 {
-		fmt.Printf("Usage: ./http-get <url>\n")
+	var (
+		requestURL string
+		password   string
+		parsedURL  *url.URL
+		err        error
+	)
+
+	flag.StringVar(&requestURL, "url", "", "URL to access")
+	flag.StringVar(&password, "password", "", "Use a password to access our API")
+	flag.Parse()
+
+	if parsedURL, err = url.ParseRequestURI(requestURL); err != nil {
+		fmt.Printf("Validation error: URL '%s' is in invalid format: %s\n", requestURL, err)
+		flag.Usage()
 		os.Exit(1)
 	}
 
-	res, err := doRequest(args[1])
+	res, err := doRequest(parsedURL.String())
 	if err != nil {
 		var requestErr RequestError
 		//if requestErr, ok := err.(RequestError); ok {
@@ -73,10 +85,6 @@ func main() {
 }
 
 func doRequest(requestURL string) (Response, error) {
-	if _, err := url.ParseRequestURI(requestURL); err != nil {
-		return nil, fmt.Errorf("Validation error: URL '%s' is in invalid format: %s\n", requestURL, err)
-	}
-
 	response, err := http.Get(requestURL)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP Get error: %s", err)
