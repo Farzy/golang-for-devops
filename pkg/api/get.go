@@ -1,15 +1,11 @@
-package main
+package api
 
 import (
 	"encoding/json"
-	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"net/url"
-	"os"
 	"strings"
 )
 
@@ -44,66 +40,8 @@ func (o Occurrence) GetResponse() string {
 	return fmt.Sprintf("%s", strings.Join(out, ", "))
 }
 
-func main() {
-	var (
-		requestURL string
-		password   string
-		parsedURL  *url.URL
-		err        error
-	)
-
-	flag.StringVar(&requestURL, "url", "", "URL to access")
-	flag.StringVar(&password, "password", "", "Use a password to access our API")
-	flag.Parse()
-
-	if parsedURL, err = url.ParseRequestURI(requestURL); err != nil {
-		fmt.Printf("Validation error: URL '%s' is in invalid format: %s\n", requestURL, err)
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	client := http.Client{}
-
-	if password != "" {
-		token, err := doLoginRequest(client, parsedURL.Scheme+"://"+parsedURL.Host+"/login", password)
-		if err != nil {
-			var requestErr RequestError
-			if errors.As(err, &requestErr) {
-				fmt.Printf("Error: %s (HTTP Code: %d, Body: %s)\n",
-					requestErr.Err, requestErr.HTTPCode, requestErr.Body)
-				os.Exit(1)
-
-			}
-		}
-		client.Transport = MyJWTTransport{
-			transport: http.DefaultTransport,
-			token:     token,
-		}
-	}
-	res, err := doRequest(client, parsedURL.String())
-	if err != nil {
-		var requestErr RequestError
-		//if requestErr, ok := err.(RequestError); ok {
-		if errors.As(err, &requestErr) {
-			fmt.Printf("Error: %s (HTTP Code: %d, Body: %s)\n",
-				requestErr.Err, requestErr.HTTPCode, requestErr.Body)
-			os.Exit(1)
-
-		}
-		fmt.Printf("Error: %s\n", err)
-		os.Exit(1)
-	}
-
-	if res == nil {
-		fmt.Printf("No response\n")
-		os.Exit(1)
-	}
-
-	fmt.Printf("Response: %s\n", res.GetResponse())
-}
-
-func doRequest(client http.Client, requestURL string) (Response, error) {
-	response, err := client.Get(requestURL)
+func (a API) DoGetRequest(requestURL string) (Response, error) {
+	response, err := a.Client.Get(requestURL)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP Get error: %s", err)
 	}

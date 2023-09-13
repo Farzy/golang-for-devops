@@ -1,3 +1,3 @@
-module golang-for-devops
+module github.com/Farzy/golang-for-devops
 
 go 1.21

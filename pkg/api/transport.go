@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"net/http"
@@ -7,9 +7,20 @@ import (
 type MyJWTTransport struct {
 	transport http.RoundTripper
 	token     string
+	password  string
+	loginURL  string
 }
 
 func (m MyJWTTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	if m.token == "" {
+		if m.password != "" {
+			token, err := doLoginRequest(http.Client{}, m.loginURL, m.password)
+			if err != nil {
+				return nil, err
+			}
+			m.token = token
+		}
+	}
 	if m.token != "" {
 		request.Header.Add("Authorization", "Bearer "+m.token)
 	}
