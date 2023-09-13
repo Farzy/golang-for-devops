@@ -11,6 +11,10 @@ import (
 	"strings"
 )
 
+type Response interface {
+	GetResponse() string
+}
+
 type Page struct {
 	Name string `json:"page"`
 }
@@ -22,8 +26,20 @@ type Words struct {
 	Words []string `json:"words"`
 }
 
+func (w Words) GetResponse() string {
+	return fmt.Sprintf("%s", strings.Join(w.Words, ", "))
+}
+
 type Occurrence struct {
 	Words map[string]int `json:"words"`
+}
+
+func (o Occurrence) GetResponse() string {
+	var out []string
+	for word, occurrence := range o.Words {
+		out = append(out, fmt.Sprintf("%s (%d)", word, occurrence))
+	}
+	return fmt.Sprintf("%s", strings.Join(out, ", "))
 }
 
 func main() {
@@ -32,15 +48,29 @@ func main() {
 		fmt.Printf("Usage: ./http-get <url>\n")
 		os.Exit(1)
 	}
-	myUrl := args[1]
-	if _, err := url.ParseRequestURI(myUrl); err != nil {
-		fmt.Printf("URL is in invalid format: %s\n", err)
+
+	res, err := doRequest(args[1])
+	if err != nil {
+		fmt.Printf("Error: %s\n", err)
 		os.Exit(1)
 	}
 
-	response, err := http.Get(myUrl)
+	if res == nil {
+		fmt.Printf("No response\n")
+		os.Exit(1)
+	}
+
+	fmt.Printf("Response: %s\n", res.GetResponse())
+}
+
+func doRequest(requestURL string) (Response, error) {
+	if _, err := url.ParseRequestURI(requestURL); err != nil {
+		return nil, fmt.Errorf("Validation error: URL '%s' is in invalid format: %s\n", requestURL, err)
+	}
+
+	response, err := http.Get(requestURL)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("HTTP Get error: %s", err)
 	}
 
 	defer func(Body io.ReadCloser) {
@@ -52,22 +82,21 @@ func main() {
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("ReadAll error: %s", err)
 	}
 
 	fmt.Printf("HTTP Status code: %d\nBody: %s\n", response.StatusCode, body)
 	// fmt.Printf("HTTP Status code: %d\nBody: %v\n", response.StatusCode, string(body)) // Explicit []byte to string conversion
 
 	if response.StatusCode != http.StatusOK {
-		fmt.Printf("Invalid output (HTTP code: %d): %s\n", response.StatusCode, body)
-		os.Exit(1)
+		return nil, fmt.Errorf("Invalid output (HTTP code: %d): %s\n", response.StatusCode, body)
 	}
 
 	var page Page
 
 	err = json.Unmarshal(body, &page)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("unmarshal error: %s", err)
 	}
 
 	switch page.Name {
@@ -76,26 +105,20 @@ func main() {
 
 		err = json.Unmarshal(body, &words)
 		if err != nil {
-			log.Fatal(err)
+			return nil, fmt.Errorf("unmarshal error: %s", err)
 		}
 
-		fmt.Printf("JSON Parsed\nPage: %s\nWords: %v\n", page.Name, strings.Join(words.Words, ", "))
+		return words, nil
 	case "occurrence":
 		var occurrence Occurrence
 
 		err = json.Unmarshal(body, &occurrence)
 		if err != nil {
-			log.Fatal(err)
+			return nil, fmt.Errorf("unmarshal error: %s", err)
 		}
 
-		if val, ok := occurrence.Words["word1"]; ok {
-			fmt.Printf("Found word1: %d\n", val)
-		}
-
-		for word, occurrence := range occurrence.Words {
-			fmt.Printf("%s: %d\n", word, occurrence)
-		}
-	default:
-		fmt.Printf("Page not found: %s\n", page.Name)
+		return occurrence, nil
 	}
+
+	return nil, nil
 }
