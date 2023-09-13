@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -51,6 +52,14 @@ func main() {
 
 	res, err := doRequest(args[1])
 	if err != nil {
+		var requestErr RequestError
+		//if requestErr, ok := err.(RequestError); ok {
+		if errors.As(err, &requestErr) {
+			fmt.Printf("Error: %s (HTTP Code: %d, Body: %s)\n",
+				requestErr.Err, requestErr.HTTPCode, requestErr.Body)
+			os.Exit(1)
+
+		}
 		fmt.Printf("Error: %s\n", err)
 		os.Exit(1)
 	}
@@ -85,18 +94,30 @@ func doRequest(requestURL string) (Response, error) {
 		return nil, fmt.Errorf("ReadAll error: %s", err)
 	}
 
-	fmt.Printf("HTTP Status code: %d\nBody: %s\n", response.StatusCode, body)
+	//fmt.Printf("HTTP Status code: %d\nBody: %s\n", response.StatusCode, body)
 	// fmt.Printf("HTTP Status code: %d\nBody: %v\n", response.StatusCode, string(body)) // Explicit []byte to string conversion
 
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Invalid output (HTTP code: %d): %s\n", response.StatusCode, body)
 	}
 
+	if !json.Valid(body) {
+		return nil, RequestError{
+			HTTPCode: response.StatusCode,
+			Body:     string(body),
+			Err:      fmt.Sprintf("No valid JSON returned"),
+		}
+	}
+
 	var page Page
 
 	err = json.Unmarshal(body, &page)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal error: %s", err)
+		return nil, RequestError{
+			HTTPCode: response.StatusCode,
+			Body:     string(body),
+			Err:      fmt.Sprintf("Page unmasharl error: %s", err),
+		}
 	}
 
 	switch page.Name {
@@ -105,7 +126,11 @@ func doRequest(requestURL string) (Response, error) {
 
 		err = json.Unmarshal(body, &words)
 		if err != nil {
-			return nil, fmt.Errorf("unmarshal error: %s", err)
+			return nil, RequestError{
+				HTTPCode: response.StatusCode,
+				Body:     string(body),
+				Err:      fmt.Sprintf("Words unmasharl error: %s", err),
+			}
 		}
 
 		return words, nil
@@ -114,7 +139,11 @@ func doRequest(requestURL string) (Response, error) {
 
 		err = json.Unmarshal(body, &occurrence)
 		if err != nil {
-			return nil, fmt.Errorf("unmarshal error: %s", err)
+			return nil, RequestError{
+				HTTPCode: response.StatusCode,
+				Body:     string(body),
+				Err:      fmt.Sprintf("Occurrence unmasharl error: %s", err),
+			}
 		}
 
 		return occurrence, nil
