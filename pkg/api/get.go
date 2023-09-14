@@ -40,6 +40,11 @@ func (o Occurrence) GetResponse() string {
 	return fmt.Sprintf("%s", strings.Join(out, ", "))
 }
 
+type WordsPage struct {
+	Page
+	Words
+}
+
 func (a API) DoGetRequest(requestURL string) (Response, error) {
 	response, err := a.Client.Get(requestURL)
 	if err != nil {
