@@ -45,6 +45,34 @@ type WordsPage struct {
 	Words
 }
 
+type ExtraSpecial struct {
+	one   int
+	two   int
+	three string
+}
+
+func (e *ExtraSpecial) UnmarshalJSON(p []byte) error {
+	var tmp []interface{}
+	if err := json.Unmarshal(p, &tmp); err != nil {
+		return err
+	}
+	e.one = int(tmp[0].(float64))
+	e.two = int(tmp[1].(float64))
+	e.three = tmp[2].(string)
+	return nil
+}
+
+type Assignment1 struct {
+	Words        []string           `json:"words"`
+	Percentages  map[string]float64 `json:"percentages"`
+	Special      []string           `json:"special"`
+	ExtraSpecial ExtraSpecial       `json:"extraSpecial"`
+}
+
+func (a Assignment1) GetResponse() string {
+	return fmt.Sprintf("Assignment1: %+v\n", a)
+}
+
 func (a API) DoGetRequest(requestURL string) (Response, error) {
 	response, err := a.Client.Get(requestURL)
 	if err != nil {
@@ -116,6 +144,19 @@ func (a API) DoGetRequest(requestURL string) (Response, error) {
 		}
 
 		return occurrence, nil
+	case "assignment1":
+		var assignment1 Assignment1
+
+		err = json.Unmarshal(body, &assignment1)
+		if err != nil {
+			return nil, RequestError{
+				HTTPCode: response.StatusCode,
+				Body:     string(body),
+				Err:      fmt.Sprintf("Assignment1 unmasharl error: %s", err),
+			}
+		}
+
+		return assignment1, nil
 	}
 
 	return nil, nil
