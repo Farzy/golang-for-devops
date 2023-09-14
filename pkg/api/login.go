@@ -17,7 +17,7 @@ type LoginResponse struct {
 	Token string `json:"token"`
 }
 
-func doLoginRequest(client http.Client, requestURL, password string) (string, error) {
+func doLoginRequest(client ClientIface, requestURL, password string) (string, error) {
 	loginRequest := LoginRequest{Password: password}
 
 	body, err := json.Marshal(loginRequest)

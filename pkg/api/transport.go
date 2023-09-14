@@ -5,16 +5,17 @@ import (
 )
 
 type MyJWTTransport struct {
-	transport http.RoundTripper
-	token     string
-	password  string
-	loginURL  string
+	transport  http.RoundTripper
+	token      string
+	password   string
+	loginURL   string
+	httpClient ClientIface
 }
 
 func (m *MyJWTTransport) RoundTrip(request *http.Request) (*http.Response, error) {
 	if m.token == "" {
 		if m.password != "" {
-			token, err := doLoginRequest(http.Client{}, m.loginURL, m.password)
+			token, err := doLoginRequest(m.httpClient, m.loginURL, m.password)
 			if err != nil {
 				return nil, err
 			}
