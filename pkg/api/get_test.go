@@ -14,11 +14,11 @@ type MockClient struct {
 	PostResponseOutput *http.Response
 }
 
-func (m MockClient) Get(url string) (resp *http.Response, err error) {
+func (m MockClient) Get(string) (resp *http.Response, err error) {
 	return m.GetResponseOutput, nil
 }
 
-func (m MockClient) Post(url string, s string, body io.Reader) (resp *http.Response, err error) {
+func (m MockClient) Post(string, string, io.Reader) (resp *http.Response, err error) {
 	return m.PostResponseOutput, nil
 }
 
