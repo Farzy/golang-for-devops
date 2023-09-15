@@ -78,24 +78,24 @@ type Assignment1 struct {
 }
 
 func (a Assignment1) GetResponse() string {
-	var resp = make([]byte, 0, 50)
-	resp = fmt.Appendf(resp, "Assignment1:\n")
-	resp = fmt.Appendf(resp, "Words:\n")
+	var resp []string
+	resp = append(resp, "Assignment1:\n")
+	resp = append(resp, "Words:\n")
 	for _, w := range a.Words {
-		resp = fmt.Appendf(resp, "- %q\n", w)
+		resp = append(resp, fmt.Sprintf("- %q\n", w))
 	}
-	resp = fmt.Appendf(resp, "Percentages:\n")
+	resp = append(resp, "Percentages:\n")
 	for _, p := range a.Percentages {
-		resp = fmt.Appendf(resp, "- %v\n", p)
+		resp = append(resp, fmt.Sprintf("- %v\n", p))
 	}
-	resp = fmt.Appendf(resp, "Special:\n")
+	resp = append(resp, "Special:\n")
 	for _, w := range a.Special {
-		resp = fmt.Appendf(resp, "- %q\n", w)
+		resp = append(resp, fmt.Sprintf("- %q\n", w))
 	}
-	resp = fmt.Appendf(resp, "ExtraSpecial:\n")
-	resp = fmt.Appendf(resp, "1: %d\n2: %d\n3: %q\n",
-		a.ExtraSpecial.one, a.ExtraSpecial.two, a.ExtraSpecial.three)
-	return string(resp)
+	resp = append(resp, "ExtraSpecial:\n")
+	resp = append(resp, fmt.Sprintf("1: %d\n2: %d\n3: %q\n",
+		a.ExtraSpecial.one, a.ExtraSpecial.two, a.ExtraSpecial.three))
+	return strings.Join(resp, "")
 }
 
 func (a API) DoGetRequest(requestURL string) (Response, error) {
