@@ -51,14 +51,22 @@ type ExtraSpecial struct {
 	three string
 }
 
+// UnmarshalJSON Special treatment needed because of mixed types
+// Reference: https://boldlygo.tech/posts/2019-12-19-go-json-tricks-array-as-struct/
 func (e *ExtraSpecial) UnmarshalJSON(p []byte) error {
-	var tmp []interface{}
+	var tmp []json.RawMessage
 	if err := json.Unmarshal(p, &tmp); err != nil {
 		return err
 	}
-	e.one = int(tmp[0].(float64))
-	e.two = int(tmp[1].(float64))
-	e.three = tmp[2].(string)
+	if err := json.Unmarshal(tmp[0], &e.one); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(tmp[1], &e.two); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(tmp[2], &e.three); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -70,7 +78,24 @@ type Assignment1 struct {
 }
 
 func (a Assignment1) GetResponse() string {
-	return fmt.Sprintf("Assignment1: %+v\n", a)
+	var resp = make([]byte, 0, 50)
+	resp = fmt.Appendf(resp, "Assignment1:\n")
+	resp = fmt.Appendf(resp, "Words:\n")
+	for _, w := range a.Words {
+		resp = fmt.Appendf(resp, "- %q\n", w)
+	}
+	resp = fmt.Appendf(resp, "Percentages:\n")
+	for _, p := range a.Percentages {
+		resp = fmt.Appendf(resp, "- %v\n", p)
+	}
+	resp = fmt.Appendf(resp, "Special:\n")
+	for _, w := range a.Special {
+		resp = fmt.Appendf(resp, "- %q\n", w)
+	}
+	resp = fmt.Appendf(resp, "ExtraSpecial:\n")
+	resp = fmt.Appendf(resp, "1: %d\n2: %d\n3: %q\n",
+		a.ExtraSpecial.one, a.ExtraSpecial.two, a.ExtraSpecial.three)
+	return string(resp)
 }
 
 func (a API) DoGetRequest(requestURL string) (Response, error) {
