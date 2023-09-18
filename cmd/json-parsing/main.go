@@ -7,20 +7,37 @@ import (
 	"reflect"
 )
 
+type MyJson struct {
+	Test  any    `json:"test"`
+	Test3 string `json:"test3"`
+}
+
 func main() {
-	var jsonParsed any
-	err := json.Unmarshal([]byte(`{"test": {"test2": [1, 2, 3]}, "test3": "..."}`), &jsonParsed)
+	var jsonParsed MyJson
+	err := json.Unmarshal([]byte(`{"test": {"test2": [1, 2, "a"]}, "test3": "..."}`), &jsonParsed)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("%s\n", reflect.TypeOf(jsonParsed))
 
-	switch v := jsonParsed.(type) {
+	switch v := jsonParsed.Test.(type) {
 	case map[string]any:
 		fmt.Printf("Map found: %v\n", v)
-		field1, ok := v["test"]
+		field1, ok := v["test2"]
 		if ok {
 			switch v2 := field1.(type) {
+			case []any:
+				fmt.Printf("I found a slice []any\n")
+				for _, v2Element := range v2 {
+					fmt.Printf("Type: %s\n", reflect.TypeOf(v2Element))
+					if reflect.TypeOf(v2Element).String() == "float64" {
+						//fmt.Printf("float: %f\n", v2Element.(float64))
+						// Force int conversion
+						fmt.Printf("int: %d\n", int(v2Element.(float64)))
+					} else {
+						fmt.Printf("Didn't recognize v2Element\n")
+					}
+				}
 			default:
 				fmt.Printf("Type not found: %s\n", reflect.TypeOf(v2))
 
