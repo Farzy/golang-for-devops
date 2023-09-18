@@ -19,6 +19,8 @@ func main() {
 func discover(t any) {
 	switch t.(type) {
 	case string:
+		// This will not work
+		//t2 := t + "..."
 		t2 := t.(string) + "..."
 		fmt.Printf("String found: %s\n", t)
 		fmt.Printf("New string: %s\n", t2)
