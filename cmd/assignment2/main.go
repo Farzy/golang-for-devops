@@ -23,6 +23,7 @@ func callRatelimit() {
 			os.Exit(1)
 		}
 		body, err := io.ReadAll(response.Body)
+		_ = response.Body.Close()
 		if err != nil {
 			fmt.Printf("Error readall: %v\n", err)
 			os.Exit(1)
