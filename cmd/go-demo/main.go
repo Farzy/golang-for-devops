@@ -14,6 +14,7 @@ func main() {
 		defer wg.Done()
 		testFunction("Thread 1", 300*time.Millisecond)
 	}()
+	time.Sleep(500 * time.Millisecond)
 	fmt.Printf("two\n")
 	wg.Add(1)
 	go func() {
