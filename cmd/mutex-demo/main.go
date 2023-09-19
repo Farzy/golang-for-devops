@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
+	"time"
 )
 
 type mytype struct {
@@ -11,13 +13,19 @@ type mytype struct {
 }
 
 func main() {
-	threadCount := 100
+	threadCount := 10
 	myTypeInstance := mytype{}
 	finished := make(chan bool)
 	for i := 0; i < threadCount; i++ {
 		go func(myTypeInstance *mytype) {
+			myTypeInstance.mu.Lock()
 			myTypeInstance.counter++
+			time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
+			if myTypeInstance.counter == 5 {
+				fmt.Printf("Found counter == 5\n")
+			}
 			finished <- true
+			myTypeInstance.mu.Unlock()
 		}(&myTypeInstance)
 	}
 	for i := 0; i < threadCount; i++ {
