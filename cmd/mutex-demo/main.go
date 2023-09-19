@@ -20,7 +20,7 @@ func main() {
 		go func(myTypeInstance *mytype) {
 			myTypeInstance.mu.Lock()
 			myTypeInstance.counter++
-			time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
+			time.Sleep(time.Duration(rand.Intn(800)) * time.Millisecond)
 			if myTypeInstance.counter == 5 {
 				fmt.Printf("Found counter == 5\n")
 			}
