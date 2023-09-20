@@ -5,10 +5,16 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+)
+
+const (
+	privateSSHKeyFile = "go-aws-ec2.pem"
+	keyPairName       = "go-aws-demo"
 )
 
 func main() {
@@ -36,24 +42,26 @@ func createEC2(ctx context.Context, region string) (string, error) {
 	}
 
 	ec2Client := ec2.NewFromConfig(cfg)
-	//pairs, err := ec2Client.DescribeKeyPairs(ctx, &ec2.DescribeKeyPairsInput{
-	//	KeyNames: []string{"go-aws-demo"},
-	//})
-	//if err != nil {
-	//	return "", fmt.Errorf("DescribeKeyPairs error: %s", err)
-	//}
-	//fmt.Printf("Existing keyPairs: %v\n", pairs)
 
-	_, _ = ec2Client.DeleteKeyPair(ctx, &ec2.DeleteKeyPairInput{
-		KeyName: aws.String("go-aws-demo"),
+	pairs, err := ec2Client.DescribeKeyPairs(ctx, &ec2.DescribeKeyPairsInput{
+		KeyNames: []string{keyPairName},
 	})
-	keyPairOutput, err := ec2Client.CreateKeyPair(ctx, &ec2.CreateKeyPairInput{
-		KeyName: aws.String("go-aws-demo"),
-	})
-	if err != nil {
-		return "", fmt.Errorf("CreateKeyPair error: %s", err)
+	if err != nil && !strings.Contains(err.Error(), "InvalidKeyPair.NotFound") {
+		return "", fmt.Errorf("DescribeKeyPairs error: %s", err)
 	}
-
+	if pairs == nil || len(pairs.KeyPairs) == 0 {
+		keyPairOutput, err := ec2Client.CreateKeyPair(ctx, &ec2.CreateKeyPairInput{
+			KeyName: aws.String(keyPairName),
+		})
+		if err != nil {
+			return "", fmt.Errorf("CreateKeyPair error: %s", err)
+		}
+		fmt.Printf("Writing private SSH key to file %s\n", privateSSHKeyFile)
+		err = os.WriteFile(privateSSHKeyFile, []byte(*keyPairOutput.KeyMaterial), 0600)
+		if err != nil {
+			return "", fmt.Errorf("WriteFile: cannot with private ssh key to file: %s\n", err)
+		}
+	}
 	imagesOutput, err := ec2Client.DescribeImages(ctx, &ec2.DescribeImagesInput{
 		Filters: []types.Filter{
 			{
@@ -94,8 +102,5 @@ func createEC2(ctx context.Context, region string) (string, error) {
 		return "", fmt.Errorf("instance.Instances is of length 0")
 	}
 
-	// imagesOutput.Images[0]
-	fmt.Printf("keyPair: %v\n", keyPairOutput)
-	fmt.Printf("instances: %v\n", instances)
 	return *instances.Instances[0].InstanceId, nil
 }
