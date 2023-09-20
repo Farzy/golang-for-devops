@@ -3,13 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"os"
-	"strings"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"os"
 )
 
 const (
@@ -44,12 +42,17 @@ func createEC2(ctx context.Context, region string) (string, error) {
 	ec2Client := ec2.NewFromConfig(cfg)
 
 	pairs, err := ec2Client.DescribeKeyPairs(ctx, &ec2.DescribeKeyPairsInput{
-		KeyNames: []string{keyPairName},
+		Filters: []types.Filter{
+			{
+				Name:   aws.String("key-name"),
+				Values: []string{keyPairName},
+			},
+		},
 	})
-	if err != nil && !strings.Contains(err.Error(), "InvalidKeyPair.NotFound") {
+	if err != nil {
 		return "", fmt.Errorf("DescribeKeyPairs error: %s", err)
 	}
-	if pairs == nil || len(pairs.KeyPairs) == 0 {
+	if len(pairs.KeyPairs) == 0 {
 		keyPairOutput, err := ec2Client.CreateKeyPair(ctx, &ec2.CreateKeyPairInput{
 			KeyName: aws.String(keyPairName),
 		})
