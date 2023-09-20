@@ -25,8 +25,10 @@ func index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Headers:\n%s\n", formatHeaders(&r.Header))
 }
 func main() {
+	port := "8080"
 	http.HandleFunc("/", index)
-	err := http.ListenAndServe(":8080", nil)
+	fmt.Printf("Starting server on port %s…\n", port)
+	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
 		log.Fatalf("ListenAndServe error: %v", err)
 	}
