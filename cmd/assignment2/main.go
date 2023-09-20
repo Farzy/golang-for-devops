@@ -28,7 +28,7 @@ func callRatelimit() {
 			fmt.Printf("Error readall: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("%s", body)
+		fmt.Printf("%s: %s", response.Status, body)
 		time.Sleep(1 * time.Second)
 	}
 }
