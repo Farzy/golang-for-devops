@@ -3,12 +3,13 @@ module github.com/Farzy/golang-for-devops/aws-demo-s3
 go 1.21.0
 
 require (
+	github.com/aws/aws-sdk-go-v2 v1.21.0
 	github.com/aws/aws-sdk-go-v2/config v1.18.41
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.85
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.39.0
 )
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.21.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.4.13 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.39 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.11 // indirect

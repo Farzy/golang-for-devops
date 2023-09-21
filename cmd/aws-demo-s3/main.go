@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"os"
 )
 
 const region = "eu-west-3"
@@ -31,6 +34,13 @@ func main() {
 	}
 
 	fmt.Printf("Bucket '%s' created\n", bucketName)
+
+	if err = uploadTtoS3Bucket(ctx, s3Client); err != nil {
+		fmt.Printf("uploadTtoS3Bucket error: %s\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("Upload complete!\n")
+
 }
 
 func initS3Client(ctx context.Context, region string) (*s3.Client, error) {
@@ -65,5 +75,19 @@ func createS3Bucket(ctx context.Context, s3Client *s3.Client, region string) err
 			return fmt.Errorf("unable to create bucket: %s", err)
 		}
 	}
+	return nil
+}
+
+func uploadTtoS3Bucket(ctx context.Context, s3Client *s3.Client) error {
+	uploader := manager.NewUploader(s3Client)
+	_, err := uploader.Upload(ctx, &s3.PutObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String("directory/test.txt"),
+		Body:   strings.NewReader("Hello world!"),
+	})
+	if err != nil {
+		return fmt.Errorf("upload error:, %v", err)
+	}
+
 	return nil
 }
