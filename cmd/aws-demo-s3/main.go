@@ -15,6 +15,7 @@ import (
 
 const region = "eu-west-3"
 const bucketName = "farzad-aws-demo-test-bucket-346744"
+const poemFileName = "ode-to-go.txt"
 
 func main() {
 	var (
@@ -84,6 +85,19 @@ func uploadTtoS3Bucket(ctx context.Context, s3Client *s3.Client) error {
 		Bucket: aws.String(bucketName),
 		Key:    aws.String("directory/test.txt"),
 		Body:   strings.NewReader("Hello world!"),
+	})
+	if err != nil {
+		return fmt.Errorf("upload error:, %v", err)
+	}
+
+	file, err := os.Open(poemFileName)
+	if err != nil {
+		return fmt.Errorf("cannot open file '%': %s", poemFileName, err)
+	}
+	_, err = uploader.Upload(ctx, &s3.PutObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String("directory2/ode-to-go.txt"),
+		Body:   file,
 	})
 	if err != nil {
 		return fmt.Errorf("upload error:, %v", err)
