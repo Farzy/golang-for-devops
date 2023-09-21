@@ -8,11 +8,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"os"
-	"strings"
 )
 
 const region = "eu-west-3"
-const bucketName = "farzad-aws-demo-test-bucket-3976973"
+const bucketName = "farzad-aws-demo-test-bucket-346744"
 
 func main() {
 	var (
@@ -44,14 +43,27 @@ func initS3Client(ctx context.Context, region string) (*s3.Client, error) {
 }
 
 func createS3Bucket(ctx context.Context, s3Client *s3.Client, region string) error {
-	_, err := s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
-		Bucket: aws.String(bucketName),
-		CreateBucketConfiguration: &types.CreateBucketConfiguration{
-			LocationConstraint: types.BucketLocationConstraint(region),
-		},
-	})
-	if err != nil && !strings.Contains(err.Error(), "BucketAlreadyOwnedByYou") {
-		return fmt.Errorf("unable to create bucket: %s", err)
+	allBuckets, err := s3Client.ListBuckets(ctx, &s3.ListBucketsInput{})
+	if err != nil {
+		return fmt.Errorf("ListBuckers error: %s", err)
+	}
+	found := false
+	for _, bucket := range allBuckets.Buckets {
+		if *bucket.Name == bucketName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		_, err = s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
+			Bucket: aws.String(bucketName),
+			CreateBucketConfiguration: &types.CreateBucketConfiguration{
+				LocationConstraint: types.BucketLocationConstraint(region),
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("unable to create bucket: %s", err)
+		}
 	}
 	return nil
 }
