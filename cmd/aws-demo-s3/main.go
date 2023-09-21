@@ -36,8 +36,8 @@ func main() {
 
 	fmt.Printf("Bucket '%s' created\n", bucketName)
 
-	if err = uploadTtoS3Bucket(ctx, s3Client); err != nil {
-		fmt.Printf("uploadTtoS3Bucket error: %s\n", err)
+	if err = uploadToS3Bucket(ctx, s3Client); err != nil {
+		fmt.Printf("uploadToS3Bucket error: %s\n", err)
 		os.Exit(1)
 	}
 	fmt.Printf("Upload complete!\n")
@@ -79,7 +79,7 @@ func createS3Bucket(ctx context.Context, s3Client *s3.Client, region string) err
 	return nil
 }
 
-func uploadTtoS3Bucket(ctx context.Context, s3Client *s3.Client) error {
+func uploadToS3Bucket(ctx context.Context, s3Client *s3.Client) error {
 	uploader := manager.NewUploader(s3Client)
 	_, err := uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(bucketName),
