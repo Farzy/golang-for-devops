@@ -21,6 +21,7 @@ func main() {
 	var (
 		s3Client *s3.Client
 		err      error
+		out      []byte
 	)
 
 	ctx := context.Background()
@@ -42,6 +43,11 @@ func main() {
 	}
 	fmt.Printf("Upload complete!\n")
 
+	if out, err = downloadFromS3Bucket(ctx, s3Client); err != nil {
+		fmt.Printf("downloadFromS3Bucket error: %s\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("Download complete: %s\n", out)
 }
 
 func initS3Client(ctx context.Context, region string) (*s3.Client, error) {
@@ -104,4 +110,22 @@ func uploadToS3Bucket(ctx context.Context, s3Client *s3.Client) error {
 	}
 
 	return nil
+}
+
+func downloadFromS3Bucket(ctx context.Context, s3Client *s3.Client) ([]byte, error) {
+	buffer := manager.NewWriteAtBuffer([]byte{})
+	downloader := manager.NewDownloader(s3Client)
+	numBytes, err := downloader.Download(ctx, buffer, &s3.GetObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String("directory2/ode-to-go.txt"),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("download error:, %v", err)
+	}
+
+	if numBytesReceived := len(buffer.Bytes()); numBytes != int64(numBytesReceived) {
+		return nil, fmt.Errorf("numbytes received doesn't match: %d vs %d", numBytes, numBytesReceived)
+	}
+
+	return buffer.Bytes(), nil
 }
