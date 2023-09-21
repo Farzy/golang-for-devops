@@ -22,6 +22,7 @@ func main() {
 		s3Client *s3.Client
 		err      error
 		out      []byte
+		outFile  string
 	)
 
 	ctx := context.Background()
@@ -43,8 +44,18 @@ func main() {
 	}
 	fmt.Printf("Upload complete!\n")
 
-	if out, err = downloadFromS3Bucket(ctx, s3Client); err != nil {
+	if out, err = readFromS3Bucket(ctx, s3Client); err != nil {
+		fmt.Printf("readFromS3Bucket error: %s\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("Read complete: %s\n", out)
+
+	if outFile, err = downloadFromS3Bucket(ctx, s3Client); err != nil {
 		fmt.Printf("downloadFromS3Bucket error: %s\n", err)
+		os.Exit(1)
+	}
+	if out, err = os.ReadFile(outFile); err != nil {
+		fmt.Printf("ReadFile error: %s\n", err)
 		os.Exit(1)
 	}
 	fmt.Printf("Download complete: %s\n", out)
@@ -112,7 +123,7 @@ func uploadToS3Bucket(ctx context.Context, s3Client *s3.Client) error {
 	return nil
 }
 
-func downloadFromS3Bucket(ctx context.Context, s3Client *s3.Client) ([]byte, error) {
+func readFromS3Bucket(ctx context.Context, s3Client *s3.Client) ([]byte, error) {
 	buffer := manager.NewWriteAtBuffer([]byte{})
 	downloader := manager.NewDownloader(s3Client)
 	numBytes, err := downloader.Download(ctx, buffer, &s3.GetObjectInput{
@@ -128,4 +139,27 @@ func downloadFromS3Bucket(ctx context.Context, s3Client *s3.Client) ([]byte, err
 	}
 
 	return buffer.Bytes(), nil
+}
+
+func downloadFromS3Bucket(ctx context.Context, s3Client *s3.Client) (string, error) {
+	buffer := manager.NewWriteAtBuffer([]byte{})
+	downloader := manager.NewDownloader(s3Client)
+	numBytes, err := downloader.Download(ctx, buffer, &s3.GetObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String("directory/test.txt"),
+	})
+	if err != nil {
+		return "", fmt.Errorf("download error:, %v", err)
+	}
+
+	if numBytesReceived := len(buffer.Bytes()); numBytes != int64(numBytesReceived) {
+		return "", fmt.Errorf("numbytes received doesn't match: %d vs %d", numBytes, numBytesReceived)
+	}
+
+	err = os.WriteFile("test-dl.txt", buffer.Bytes(), 0600)
+	if err != nil {
+		return "", fmt.Errorf("WriteFile error: %s", err)
+	}
+
+	return "test-dl.txt", nil
 }
