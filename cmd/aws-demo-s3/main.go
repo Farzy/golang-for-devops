@@ -109,7 +109,7 @@ func uploadToS3Bucket(ctx context.Context, s3Client *s3.Client) error {
 
 	file, err := os.Open(poemFileName)
 	if err != nil {
-		return fmt.Errorf("cannot open file '%': %s", poemFileName, err)
+		return fmt.Errorf("cannot open file '%s': %s", poemFileName, err)
 	}
 	_, err = uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(bucketName),
