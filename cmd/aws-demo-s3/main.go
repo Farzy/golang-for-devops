@@ -17,6 +17,11 @@ const region = "eu-west-3"
 const bucketName = "farzad-aws-demo-test-bucket-346744"
 const poemFileName = "ode-to-go.txt"
 
+type S3Client interface {
+	ListBuckets(ctx context.Context, params *s3.ListBucketsInput, optFns ...func(*s3.Options)) (*s3.ListBucketsOutput, error)
+	CreateBucket(ctx context.Context, params *s3.CreateBucketInput, optFns ...func(*s3.Options)) (*s3.CreateBucketOutput, error)
+}
+
 func main() {
 	var (
 		s3Client *s3.Client
@@ -70,7 +75,7 @@ func initS3Client(ctx context.Context, region string) (*s3.Client, error) {
 	return s3.NewFromConfig(cfg), nil
 }
 
-func createS3Bucket(ctx context.Context, s3Client *s3.Client, region string) error {
+func createS3Bucket(ctx context.Context, s3Client S3Client, region string) error {
 	allBuckets, err := s3Client.ListBuckets(ctx, &s3.ListBucketsInput{})
 	if err != nil {
 		return fmt.Errorf("ListBuckers error: %s", err)
