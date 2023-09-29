@@ -1,3 +1,5 @@
+// Testing inspired by https://www.myhatchpad.com/insight/mocking-techniques-for-go/
+
 package main
 
 import (
@@ -10,62 +12,75 @@ import (
 )
 
 type MockS3Client struct {
-	ListBucketOutput   *s3.ListBucketsOutput
-	CreateBucketOutput *s3.CreateBucketOutput
+	name                       string
+	listBucketOutput           *s3.ListBucketsOutput
+	createBucketOutput         *s3.CreateBucketOutput
+	isCreateBucketCalled       bool
+	expectedCreateBucketCalled bool
 }
 
 func (m *MockS3Client) ListBuckets(ctx context.Context, params *s3.ListBucketsInput, optFns ...func(*s3.Options)) (*s3.ListBucketsOutput, error) {
-	return m.ListBucketOutput, nil
+	return m.listBucketOutput, nil
 }
 
 func (m *MockS3Client) CreateBucket(ctx context.Context, params *s3.CreateBucketInput, optFns ...func(*s3.Options)) (*s3.CreateBucketOutput, error) {
-	return m.CreateBucketOutput, nil
+	m.isCreateBucketCalled = true
+	return m.createBucketOutput, nil
 }
 
 func TestCreateS3Bucket_Creation(t *testing.T) {
-	ctx := context.Background()
-	err := createS3Bucket(ctx, &MockS3Client{
-		ListBucketOutput: &s3.ListBucketsOutput{
-			Buckets: []types.Bucket{
-				{
-					CreationDate: aws.Time(time.Now()),
-					Name:         aws.String("test-bucket"),
-				},
-				{
-					CreationDate: aws.Time(time.Now()),
-					Name:         aws.String("test-bucket-2"),
+	testTable := []MockS3Client{
+		{
+			name: "Bucket does not exist yet",
+			listBucketOutput: &s3.ListBucketsOutput{
+				Buckets: []types.Bucket{
+					{
+						CreationDate: aws.Time(time.Now()),
+						Name:         aws.String("test-bucket"),
+					},
+					{
+						CreationDate: aws.Time(time.Now()),
+						Name:         aws.String("test-bucket-2"),
+					},
 				},
 			},
+			createBucketOutput: &s3.CreateBucketOutput{
+				Location: nil,
+			},
+			expectedCreateBucketCalled: true,
 		},
-		CreateBucketOutput: &s3.CreateBucketOutput{
-			Location: nil,
+		{
+			name: "Bucket already exists",
+			listBucketOutput: &s3.ListBucketsOutput{
+				Buckets: []types.Bucket{
+					{
+						CreationDate: aws.Time(time.Now()),
+						Name:         aws.String(bucketName),
+					},
+					{
+						CreationDate: aws.Time(time.Now()),
+						Name:         aws.String("test-bucket-2"),
+					},
+				},
+			},
+			createBucketOutput: &s3.CreateBucketOutput{
+				Location: nil,
+			},
+			expectedCreateBucketCalled: false,
 		},
-	}, region)
-	if err != nil {
-		t.Fatalf("createS3Bucket error: %s", err)
 	}
-}
-
-func TestCreateS3Bucket_Existing(t *testing.T) {
 	ctx := context.Background()
-	err := createS3Bucket(ctx, &MockS3Client{
-		ListBucketOutput: &s3.ListBucketsOutput{
-			Buckets: []types.Bucket{
-				{
-					CreationDate: aws.Time(time.Now()),
-					Name:         aws.String("test-bucket"),
-				},
-				{
-					CreationDate: aws.Time(time.Now()),
-					Name:         aws.String(bucketName),
-				},
-			},
-		},
-		CreateBucketOutput: &s3.CreateBucketOutput{
-			Location: nil,
-		},
-	}, region)
-	if err != nil {
-		t.Fatalf("createS3Bucket error: %s", err)
+	for _, tc := range testTable {
+		t.Run(tc.name, func(t *testing.T) {
+			err := createS3Bucket(ctx, &tc, region)
+			if err != nil {
+				t.Fatalf("createS3Bucket error: %s", err)
+			}
+			if tc.expectedCreateBucketCalled != tc.isCreateBucketCalled {
+				t.Fatalf("expected isCreateBucketCalled to be %v, got %v",
+					tc.expectedCreateBucketCalled,
+					tc.isCreateBucketCalled)
+			}
+		})
 	}
 }
