@@ -15,7 +15,7 @@ var handlers = []struct {
 	cost int8
 }{
 	{
-		"/v1/hello",
+		"/v1/hello/",
 		HelloHandler,
 		1,
 	},
@@ -31,8 +31,10 @@ var handlers = []struct {
 	},
 }
 
-func HelloHandler(w http.ResponseWriter, _ *http.Request) {
-	_, _ = w.Write([]byte("Hello, World!\n"))
+func HelloHandler(w http.ResponseWriter, r *http.Request) {
+	_, _ = w.Write([]byte(fmt.Sprintf(`Hello, World!
+This is the path: %s
+`, r.URL.Path)))
 }
 
 func CurrentTimeHandler(w http.ResponseWriter, _ *http.Request) {
