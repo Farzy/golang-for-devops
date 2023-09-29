@@ -69,14 +69,49 @@ type Logger struct {
 // ServeHTTP handles the request by passing it to the real
 // handler and logging the request details
 func (l *Logger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Begin Logger")
 	start := time.Now()
 	l.handler.ServeHTTP(w, r)
-	log.Printf("Logger: %s %s %v", r.Method, r.URL.Path, time.Since(start))
+	log.Printf("End Logger: %s %s %v", r.Method, r.URL.Path, time.Since(start))
 }
 
 // NewLogger constructs a new Logger middleware handler
 func NewLogger(next http.Handler) *Logger {
 	return &Logger{next}
+}
+
+type ResponseHeader struct {
+	handler     http.Handler
+	headerName  string
+	headerValue string
+}
+
+func (rh ResponseHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Begin ResponseHeader")
+	w.Header().Add(rh.headerName, rh.headerValue)
+	rh.handler.ServeHTTP(w, r)
+	log.Printf("End ResponseHeader")
+}
+
+func NewResponseHeader(next http.Handler, headerName string, headerValue string) http.Handler {
+	return &ResponseHeader{
+		next,
+		headerName,
+		headerValue,
+	}
+}
+
+func Middleware1(next http.Handler) http.Handler {
+	return http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			log.Printf("Begin Middleware1")
+			log.Printf("  Request: %+v", r)
+			log.Printf("  Response: %+v", w)
+			next.ServeHTTP(w, r)
+			log.Printf("End Middleware1")
+			log.Printf("  Response: %+v", w)
+		},
+	)
 }
 
 func main() {
@@ -89,7 +124,10 @@ func main() {
 	for _, handler := range handlers {
 		mux.HandleFunc(handler.path, handler.fn)
 	}
-	wrappedMux := NewLogger(mux)
+	wrappedMux :=
+		Middleware1(
+			NewLogger(
+				NewResponseHeader(mux, "X-My-Header", "My header value")))
 
 	log.Printf("Server is listening at %s", addr)
 	log.Fatal(http.ListenAndServe(addr, wrappedMux))
