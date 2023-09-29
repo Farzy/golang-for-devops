@@ -184,3 +184,4 @@ Temporary Items
 /cmd/aws-demo/go-aws-ec2.pem
 /cmd/aws-demo-s3/aws-demo-s3
 /cmd/aws-demo-s3/test-dl.txt
+/cmd/http-mux/http-mux
