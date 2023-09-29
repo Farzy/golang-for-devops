@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -23,6 +24,11 @@ var handlers = []struct {
 		CurrentTimeHandler,
 		2,
 	},
+	{
+		"/v1/trailers",
+		SendTrailersHandler,
+		2,
+	},
 }
 
 func HelloHandler(w http.ResponseWriter, _ *http.Request) {
@@ -32,6 +38,25 @@ func HelloHandler(w http.ResponseWriter, _ *http.Request) {
 func CurrentTimeHandler(w http.ResponseWriter, _ *http.Request) {
 	curTime := time.Now().Format(time.RFC3339)
 	_, _ = w.Write([]byte(fmt.Sprintf("The current time is %v\n", curTime)))
+}
+
+// SendTrailersHandler add HTTP Trailers, they are a set of key/value pairs like headers that come after
+// the HTTP response, instead of before.
+func SendTrailersHandler(w http.ResponseWriter, _ *http.Request) {
+	// Before any call to WriteHeader or Write, declare
+	// the trailers you will set during the HTTP
+	// response. These three headers are actually sent in
+	// the trailer.
+	w.Header().Set("Trailer", "AtEnd1, AtEnd2")
+	w.Header().Add("Trailer", "AtEnd3")
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8") // normal header
+	w.WriteHeader(http.StatusOK)
+
+	w.Header().Set("AtEnd1", "value 1")
+	_, _ = io.WriteString(w, "This HTTP response has both headers before this text and trailers at the end.\n")
+	w.Header().Set("AtEnd2", "value 2")
+	w.Header().Set("AtEnd3", "value 3") // These will appear as trailers.
 }
 
 // Logger is a middleware handler that does request logging
