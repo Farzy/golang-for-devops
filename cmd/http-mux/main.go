@@ -10,7 +10,7 @@ import (
 
 var handlers = []struct {
 	path string
-	fn   func(w http.ResponseWriter, r *http.Request)
+	fn   http.HandlerFunc
 	cost int8
 }{
 	{
