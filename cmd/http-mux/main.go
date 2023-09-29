@@ -25,13 +25,13 @@ var handlers = []struct {
 	},
 }
 
-func HelloHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Hello, World!\n"))
+func HelloHandler(w http.ResponseWriter, _ *http.Request) {
+	_, _ = w.Write([]byte("Hello, World!\n"))
 }
 
-func CurrentTimeHandler(w http.ResponseWriter, r *http.Request) {
+func CurrentTimeHandler(w http.ResponseWriter, _ *http.Request) {
 	curTime := time.Now().Format(time.RFC3339)
-	w.Write([]byte(fmt.Sprintf("The current time is %v\n", curTime)))
+	_, _ = w.Write([]byte(fmt.Sprintf("The current time is %v\n", curTime)))
 }
 
 func main() {
