@@ -8,6 +8,23 @@ import (
 	"time"
 )
 
+var handlers = []struct {
+	path string
+	fn   func(w http.ResponseWriter, r *http.Request)
+	cost int8
+}{
+	{
+		"/v1/hello",
+		HelloHandler,
+		1,
+	},
+	{
+		"/v1/time",
+		CurrentTimeHandler,
+		2,
+	},
+}
+
 func HelloHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hello, World!\n"))
 }
@@ -18,14 +35,15 @@ func CurrentTimeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	addr := os.Getenv("ADDR")
-	if len(addr) == 0 {
+	addr, exists := os.LookupEnv("ADDR")
+	if !exists {
 		addr = "localhost:8080"
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/hello", HelloHandler)
-	mux.HandleFunc("/v1/time", CurrentTimeHandler)
+	for _, handler := range handlers {
+		mux.HandleFunc(handler.path, handler.fn)
+	}
 
 	log.Printf("Server is listening at %s", addr)
 	log.Fatal(http.ListenAndServe(addr, mux))
