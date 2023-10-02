@@ -6,28 +6,35 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
+
+	"github.com/Farzy/golang-for-devops/pkg/mux/helpers"
 )
 
 var handlers = []struct {
-	path string
-	fn   http.HandlerFunc
-	cost int8
+	path        string
+	pathTrailer string
+	fn          http.HandlerFunc
+	cost        int8
 }{
 	{
-		"/v1/hello/",
+		"/v1/hello",
+		"/",
 		HelloHandler,
 		1,
 	},
 	{
 		"/v1/time",
+		"",
 		CurrentTimeHandler,
 		2,
 	},
 	{
 		"/v1/trailers",
+		"",
 		SendTrailersHandler,
-		2,
+		3,
 	},
 }
 
@@ -101,6 +108,35 @@ func NewResponseHeader(next http.Handler, headerName string, headerValue string)
 	}
 }
 
+type CostHeader struct {
+	handler    http.Handler
+	routeCosts map[string]int8
+}
+
+func (ch *CostHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Keep only the first 2 components of the path, without the trailing '/'
+	path := helpers.TruncateFromNthOccurrence(r.URL.Path, '/', 3)
+
+	cost, found := ch.routeCosts[path]
+	if !found {
+		cost = -1
+	}
+	w.Header().Set("X-Request-Cost", strconv.Itoa(int(cost)))
+	ch.handler.ServeHTTP(w, r)
+}
+
+func NewCostHeader(next http.Handler) http.Handler {
+	rh := CostHeader{
+		handler:    next,
+		routeCosts: make(map[string]int8),
+	}
+	for _, h := range handlers {
+		rh.routeCosts[h.path] = h.cost
+	}
+
+	return &rh
+}
+
 func Middleware1(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
@@ -122,12 +158,13 @@ func main() {
 
 	mux := http.NewServeMux()
 	for _, handler := range handlers {
-		mux.HandleFunc(handler.path, handler.fn)
+		mux.HandleFunc(handler.path+handler.pathTrailer, handler.fn)
 	}
 	wrappedMux :=
 		Middleware1(
 			NewLogger(
-				NewResponseHeader(mux, "X-My-Header", "My header value")))
+				NewResponseHeader(
+					NewCostHeader(mux), "X-My-Header", "My header value")))
 
 	log.Printf("Server is listening at %s", addr)
 	log.Fatal(http.ListenAndServe(addr, wrappedMux))
