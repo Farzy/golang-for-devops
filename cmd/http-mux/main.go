@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/Farzy/golang-for-devops/pkg/mux/helpers"
@@ -111,6 +113,8 @@ func NewResponseHeader(next http.Handler, headerName string, headerValue string)
 type CostHeader struct {
 	handler    http.Handler
 	routeCosts map[string]int8
+	rnd        *rand.Rand
+	m          sync.Mutex
 }
 
 func (ch *CostHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -122,13 +126,25 @@ func (ch *CostHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		cost = -1
 	}
 	w.Header().Set("X-Request-Cost", strconv.Itoa(int(cost)))
+
+	// Randomly return 429 status code
+	ch.m.Lock()
+	defer ch.m.Unlock()
+	if ch.rnd.Int31n(100) < 20 {
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte("Too many requests!\n"))
+		return
+	}
+
 	ch.handler.ServeHTTP(w, r)
 }
 
 func NewCostHeader(next http.Handler) http.Handler {
+
 	rh := CostHeader{
 		handler:    next,
 		routeCosts: make(map[string]int8),
+		rnd:        rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 	for _, h := range handlers {
 		rh.routeCosts[h.path] = h.cost
