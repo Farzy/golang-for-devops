@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -12,7 +11,10 @@ import (
 	"time"
 
 	"github.com/Farzy/golang-for-devops/pkg/mux/helpers"
+	"github.com/Farzy/golang-for-devops/pkg/mux/token-bucket"
 )
+
+const RefillRate = 10
 
 var handlers = []struct {
 	path        string
@@ -30,7 +32,7 @@ var handlers = []struct {
 		"/v1/time",
 		"",
 		CurrentTimeHandler,
-		2,
+		5,
 	},
 	{
 		"/v1/trailers",
@@ -111,13 +113,15 @@ func NewResponseHeader(next http.Handler, headerName string, headerValue string)
 }
 
 type CostHeader struct {
-	handler    http.Handler
-	routeCosts map[string]int8
-	rnd        *rand.Rand
-	m          sync.Mutex
+	handler       http.Handler
+	routeCosts    map[string]int8
+	pathBucketMap map[string]*token_bucket.TokenBucket
+	m             sync.Mutex
 }
 
 func (ch *CostHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var pathBucket *token_bucket.TokenBucket
+
 	// Keep only the first 2 components of the path, without the trailing '/'
 	path := helpers.TruncateFromNthOccurrence(r.URL.Path, '/', 3)
 
@@ -127,30 +131,32 @@ func (ch *CostHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("X-Request-Cost", strconv.Itoa(int(cost)))
 
-	// Randomly return 429 status code
-	ch.m.Lock()
-	defer ch.m.Unlock()
-	if ch.rnd.Int31n(100) < 20 {
+	if pathBucket, found = ch.pathBucketMap[path]; !found {
+		ch.m.Lock()
+		pathBucket = token_bucket.NewTokenBucket(RefillRate, int64(cost))
+		ch.pathBucketMap[path] = pathBucket
+		ch.m.Unlock()
+	}
+	if pathBucket.IsRequestAllowed(int64(cost)) {
+		ch.handler.ServeHTTP(w, r)
+	} else {
 		w.WriteHeader(http.StatusTooManyRequests)
 		_, _ = w.Write([]byte("Too many requests!\n"))
 		return
 	}
-
-	ch.handler.ServeHTTP(w, r)
 }
 
 func NewCostHeader(next http.Handler) http.Handler {
-
-	rh := CostHeader{
-		handler:    next,
-		routeCosts: make(map[string]int8),
-		rnd:        rand.New(rand.NewSource(time.Now().UnixNano())),
+	ch := CostHeader{
+		handler:       next,
+		routeCosts:    make(map[string]int8),
+		pathBucketMap: make(map[string]*token_bucket.TokenBucket),
 	}
 	for _, h := range handlers {
-		rh.routeCosts[h.path] = h.cost
+		ch.routeCosts[h.path] = h.cost
 	}
 
-	return &rh
+	return &ch
 }
 
 func Middleware1(next http.Handler) http.Handler {
