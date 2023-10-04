@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
@@ -14,31 +13,31 @@ import (
 	"github.com/Farzy/golang-for-devops/pkg/mux/token-bucket"
 )
 
-const RefillRate = 10
-
-var handlers = []struct {
-	path        string
+type HTTPHandlerConfig struct {
 	pathTrailer string
 	fn          http.HandlerFunc
-	cost        int8
-}{
-	{
-		"/v1/hello",
+	maxTokens   int64
+	rate        int64
+}
+
+var handlers = map[string]*HTTPHandlerConfig{
+	"/v1/hello": {
 		"/",
 		HelloHandler,
-		1,
+		50,
+		2,
 	},
-	{
-		"/v1/time",
+	"/v1/time": {
 		"",
 		CurrentTimeHandler,
-		5,
+		25,
+		1,
 	},
-	{
-		"/v1/trailers",
+	"/v1/trailers": {
 		"",
 		SendTrailersHandler,
-		3,
+		10,
+		1,
 	},
 }
 
@@ -80,7 +79,6 @@ type Logger struct {
 // ServeHTTP handles the request by passing it to the real
 // handler and logging the request details
 func (l *Logger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Begin Logger")
 	start := time.Now()
 	l.handler.ServeHTTP(w, r)
 	log.Printf("End Logger: %s %s %v", r.Method, r.URL.Path, time.Since(start))
@@ -98,10 +96,8 @@ type ResponseHeader struct {
 }
 
 func (rh ResponseHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Begin ResponseHeader")
 	w.Header().Add(rh.headerName, rh.headerValue)
 	rh.handler.ServeHTTP(w, r)
-	log.Printf("End ResponseHeader")
 }
 
 func NewResponseHeader(next http.Handler, headerName string, headerValue string) http.Handler {
@@ -114,7 +110,6 @@ func NewResponseHeader(next http.Handler, headerName string, headerValue string)
 
 type CostHeader struct {
 	handler       http.Handler
-	routeCosts    map[string]int8
 	pathBucketMap map[string]*token_bucket.TokenBucket
 	m             sync.Mutex
 }
@@ -125,19 +120,26 @@ func (ch *CostHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Keep only the first 2 components of the path, without the trailing '/'
 	path := helpers.TruncateFromNthOccurrence(r.URL.Path, '/', 3)
 
-	cost, found := ch.routeCosts[path]
+	handlerConfig, found := handlers[path]
 	if !found {
-		cost = -1
+		handlerConfig = &HTTPHandlerConfig{
+			pathTrailer: "",
+			fn:          nil,
+			maxTokens:   1,
+			rate:        1,
+		}
 	}
-	w.Header().Set("X-Request-Cost", strconv.Itoa(int(cost)))
+	w.Header().Set(
+		"X-Request-Cost",
+		fmt.Sprintf("max %d / rate %d", handlerConfig.maxTokens, handlerConfig.rate))
 
 	if pathBucket, found = ch.pathBucketMap[path]; !found {
 		ch.m.Lock()
-		pathBucket = token_bucket.NewTokenBucket(RefillRate, int64(cost))
+		pathBucket = token_bucket.NewTokenBucket(handlerConfig.rate, handlerConfig.maxTokens)
 		ch.pathBucketMap[path] = pathBucket
 		ch.m.Unlock()
 	}
-	if pathBucket.IsRequestAllowed(int64(cost)) {
+	if pathBucket.IsRequestAllowed(1) {
 		ch.handler.ServeHTTP(w, r)
 	} else {
 		w.WriteHeader(http.StatusTooManyRequests)
@@ -149,11 +151,7 @@ func (ch *CostHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewCostHeader(next http.Handler) http.Handler {
 	ch := CostHeader{
 		handler:       next,
-		routeCosts:    make(map[string]int8),
 		pathBucketMap: make(map[string]*token_bucket.TokenBucket),
-	}
-	for _, h := range handlers {
-		ch.routeCosts[h.path] = h.cost
 	}
 
 	return &ch
@@ -162,12 +160,9 @@ func NewCostHeader(next http.Handler) http.Handler {
 func Middleware1(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			log.Printf("Begin Middleware1")
-			log.Printf("  Request: %+v", r)
-			log.Printf("  Response: %+v", w)
+			log.Printf("Middleware1 Request: %+v", r)
 			next.ServeHTTP(w, r)
-			log.Printf("End Middleware1")
-			log.Printf("  Response: %+v", w)
+			log.Printf("Middleware1 Response: %+v", w)
 		},
 	)
 }
@@ -179,8 +174,8 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	for _, handler := range handlers {
-		mux.HandleFunc(handler.path+handler.pathTrailer, handler.fn)
+	for path, handlerConfig := range handlers {
+		mux.HandleFunc(path+handlerConfig.pathTrailer, handlerConfig.fn)
 	}
 	wrappedMux :=
 		Middleware1(
