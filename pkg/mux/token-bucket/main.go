@@ -35,6 +35,10 @@ import (
 	"time"
 )
 
+// Store MaxToken and Rate multiplied by a fixed coefficient, so that for very small fractions of time
+// the token increment does not compute as a number smaller than 1.
+const coefficient = 1000
+
 // TokenBucket represents a token bucket, a counter for a type of resource,
 // filled at a steady rate. The rate is specified in tokens per second.
 // The bucket has a capacity, and if a token arrives when the bucket is full,
@@ -50,9 +54,9 @@ type TokenBucket struct {
 // NewTokenBucket creates a new TokenBucket with the specified rate and capacity.
 func NewTokenBucket(Rate int64, MaxTokens int64) *TokenBucket {
 	return &TokenBucket{
-		rate:                Rate,
-		maxTokens:           MaxTokens,
-		currentTokens:       MaxTokens,
+		rate:                Rate * coefficient,
+		maxTokens:           MaxTokens * coefficient,
+		currentTokens:       MaxTokens * coefficient,
 		lastRefillTimestamp: time.Now(),
 	}
 }
@@ -64,6 +68,9 @@ func (tb *TokenBucket) refill() {
 	now := time.Now()
 	end := time.Since(tb.lastRefillTimestamp)
 	tokensToBeAdded := (end.Nanoseconds() * tb.rate) / 1000000000
+	if tokensToBeAdded == 0 {
+		panic("TokenBucket: tokensToBeAdded is 0!")
+	}
 	tb.currentTokens = int64(math.Min(float64(tb.currentTokens+tokensToBeAdded), float64(tb.maxTokens)))
 	tb.lastRefillTimestamp = now
 }
@@ -76,6 +83,7 @@ func (tb *TokenBucket) IsRequestAllowed(tokens int64) bool {
 	tb.mutex.Lock()
 	defer tb.mutex.Unlock()
 	tb.refill()
+	tokens *= coefficient
 	if tb.currentTokens >= tokens {
 		tb.currentTokens -= tokens
 		return true

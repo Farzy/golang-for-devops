@@ -7,11 +7,11 @@ import (
 
 func TestNewTokenBucket(t *testing.T) {
 	tb := NewTokenBucket(10, 100)
-	if tb.rate != 10 {
+	if tb.rate != 10*coefficient {
 		t.Errorf("Expected bucket rate to be 10, but got %d", tb.rate)
 	}
 
-	if tb.maxTokens != 100 {
+	if tb.maxTokens != 100*coefficient {
 		t.Errorf("Expected max tokens to be 100, but got %d", tb.maxTokens)
 	}
 }
@@ -37,7 +37,7 @@ func TestTokenBucket_Refill(t *testing.T) {
 
 	time.Sleep(300 * time.Millisecond) // just for test purposes
 	tb.refill()
-	if tb.currentTokens != 3 {
+	if tb.currentTokens/coefficient != 3 {
 		t.Errorf("Expected tokens count to be sufficient after sleep")
 	}
 	if tb.IsRequestAllowed(5) {
