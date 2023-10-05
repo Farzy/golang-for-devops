@@ -35,9 +35,11 @@ import (
 	"time"
 )
 
-// Store MaxToken and Rate multiplied by a fixed coefficient, so that for very small fractions of time
+// Store and manipulate tokens& MaxToken multiplied by a fixed coefficient, equal to the number of
+// nanoseconds in a second, so that for very small fractions of time
 // the token increment does not compute as a number smaller than 1.
-const coefficient = 1000
+// The rate (per second) will be stored as is, because we multiply it a duration in nanoseconds
+const coefficient = 1e+9
 
 // TokenBucket represents a token bucket, a counter for a type of resource,
 // filled at a steady rate. The rate is specified in tokens per second.
@@ -54,7 +56,7 @@ type TokenBucket struct {
 // NewTokenBucket creates a new TokenBucket with the specified rate and capacity.
 func NewTokenBucket(Rate int64, MaxTokens int64) *TokenBucket {
 	return &TokenBucket{
-		rate:                Rate * coefficient,
+		rate:                Rate,
 		maxTokens:           MaxTokens * coefficient,
 		currentTokens:       MaxTokens * coefficient,
 		lastRefillTimestamp: time.Now(),
@@ -67,7 +69,7 @@ func NewTokenBucket(Rate int64, MaxTokens int64) *TokenBucket {
 func (tb *TokenBucket) refill() {
 	now := time.Now()
 	end := time.Since(tb.lastRefillTimestamp)
-	tokensToBeAdded := (end.Nanoseconds() * tb.rate) / 1000000000
+	tokensToBeAdded := end.Nanoseconds() * tb.rate
 	if tokensToBeAdded == 0 {
 		panic("TokenBucket: tokensToBeAdded is 0!")
 	}

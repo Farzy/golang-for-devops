@@ -7,7 +7,7 @@ import (
 
 func TestNewTokenBucket(t *testing.T) {
 	tb := NewTokenBucket(10, 100)
-	if tb.rate != 10*coefficient {
+	if tb.rate != 10 {
 		t.Errorf("Expected bucket rate to be 10, but got %d", tb.rate)
 	}
 
@@ -48,4 +48,22 @@ func TestTokenBucket_Refill(t *testing.T) {
 	if !tb.IsRequestAllowed(5) {
 		t.Errorf("Expected IsRequestAllowed to return true when tokens are sufficient")
 	}
+}
+
+func TestTokenBucket_Refill_Fast(t *testing.T) {
+	tb := NewTokenBucket(10, 100)
+	tb.IsRequestAllowed(100)
+	if tb.currentTokens != 0 {
+		t.Errorf("Expected tokens count to be 0 after consuming all tokens")
+	}
+
+	for i := 1; i < 10; i++ {
+		if tb.IsRequestAllowed(5) {
+			t.Errorf("Expected IsRequestAllowed to return false when tokens are insufficient")
+		}
+	}
+	if tb.currentTokens == 0 {
+		t.Errorf("Expected tokens count to be > 0 consecutive fast requests")
+	}
+
 }
