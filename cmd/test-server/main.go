@@ -20,9 +20,9 @@ func formatHeaders(header *http.Header) string {
 
 func index(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
-	fmt.Fprintf(w, "It works.\n")
-	fmt.Fprintf(w, "Method: %v\n", r.Method)
-	fmt.Fprintf(w, "Headers:\n%s\n", formatHeaders(&r.Header))
+	_, _ = fmt.Fprintf(w, "It works.\n")
+	_, _ = fmt.Fprintf(w, "Method: %v\n", r.Method)
+	_, _ = fmt.Fprintf(w, "Headers:\n%s\n", formatHeaders(&r.Header))
 }
 func main() {
 	port := "8080"
