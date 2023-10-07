@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"testing"
@@ -26,6 +27,14 @@ func (m *MockS3Client) ListBuckets(ctx context.Context, params *s3.ListBucketsIn
 func (m *MockS3Client) CreateBucket(ctx context.Context, params *s3.CreateBucketInput, optFns ...func(*s3.Options)) (*s3.CreateBucketOutput, error) {
 	m.isCreateBucketCalled = true
 	return m.createBucketOutput, nil
+}
+
+type MockS3Uploader struct {
+	name string
+}
+
+func (m *MockS3Uploader) Upload(ctx context.Context, input *s3.PutObjectInput, opts ...func(*manager.Uploader)) (*manager.UploadOutput, error) {
+	return &manager.UploadOutput{}, nil
 }
 
 func TestCreateS3Bucket_Creation(t *testing.T) {
@@ -80,6 +89,23 @@ func TestCreateS3Bucket_Creation(t *testing.T) {
 				t.Fatalf("expected isCreateBucketCalled to be %v, got %v",
 					tc.expectedCreateBucketCalled,
 					tc.isCreateBucketCalled)
+			}
+		})
+	}
+}
+
+func TestUploadToS3Bucket(t *testing.T) {
+	testTable := []MockS3Uploader{
+		{
+			name: "Upload file",
+		},
+	}
+	ctx := context.Background()
+	for _, tc := range testTable {
+		t.Run(tc.name, func(t *testing.T) {
+			err := uploadToS3Bucket(ctx, &tc)
+			if err != nil {
+				t.Fatalf("uploadToS3Bucket error: %s", err)
 			}
 		})
 	}
