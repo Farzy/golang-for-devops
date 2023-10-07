@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -20,6 +21,14 @@ const poemFileName = "ode-to-go.txt"
 type S3Client interface {
 	ListBuckets(ctx context.Context, params *s3.ListBucketsInput, optFns ...func(*s3.Options)) (*s3.ListBucketsOutput, error)
 	CreateBucket(ctx context.Context, params *s3.CreateBucketInput, optFns ...func(*s3.Options)) (*s3.CreateBucketOutput, error)
+}
+
+type S3Uploader interface {
+	Upload(ctx context.Context, input *s3.PutObjectInput, opts ...func(*manager.Uploader)) (*manager.UploadOutput, error)
+}
+
+type S3Downloader interface {
+	Download(ctx context.Context, w io.WriterAt, input *s3.GetObjectInput, options ...func(*manager.Downloader)) (n int64, err error)
 }
 
 func main() {
@@ -43,13 +52,15 @@ func main() {
 
 	fmt.Printf("Bucket '%s' created\n", bucketName)
 
-	if err = uploadToS3Bucket(ctx, s3Client); err != nil {
+	uploader := manager.NewUploader(s3Client)
+	if err = uploadToS3Bucket(ctx, uploader); err != nil {
 		fmt.Printf("uploadToS3Bucket error: %s\n", err)
 		os.Exit(1)
 	}
 	fmt.Printf("Upload complete!\n")
 
-	if out, err = readFromS3Bucket(ctx, s3Client); err != nil {
+	downloader := manager.NewDownloader(s3Client)
+	if out, err = readFromS3Bucket(ctx, downloader); err != nil {
 		fmt.Printf("readFromS3Bucket error: %s\n", err)
 		os.Exit(1)
 	}
@@ -101,8 +112,7 @@ func createS3Bucket(ctx context.Context, s3Client S3Client, region string) error
 	return nil
 }
 
-func uploadToS3Bucket(ctx context.Context, s3Client *s3.Client) error {
-	uploader := manager.NewUploader(s3Client)
+func uploadToS3Bucket(ctx context.Context, uploader S3Uploader) error {
 	_, err := uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String("directory/test.txt"),
@@ -128,9 +138,8 @@ func uploadToS3Bucket(ctx context.Context, s3Client *s3.Client) error {
 	return nil
 }
 
-func readFromS3Bucket(ctx context.Context, s3Client *s3.Client) ([]byte, error) {
+func readFromS3Bucket(ctx context.Context, downloader S3Downloader) ([]byte, error) {
 	buffer := manager.NewWriteAtBuffer([]byte{})
-	downloader := manager.NewDownloader(s3Client)
 	numBytes, err := downloader.Download(ctx, buffer, &s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String("directory2/ode-to-go.txt"),
